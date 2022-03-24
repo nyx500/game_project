@@ -1,10 +1,6 @@
 /*
 
-- Copy your game project code into this file
-- for the p5.Sound library look here https://p5js.org/reference/#/libraries/p5.sound
-- for finding cool sounds perhaps look here
-https://freesound.org/
-
+The extensions selected for this game project are (1) using the p5.js sound effects and (2) creating enemies.
 
 */
 
@@ -24,21 +20,17 @@ var clouds;
 var mountains;
 var collectables;
 var canyons;
-var enemies;
 
 var game_score;
 var flagpole;
 var lives;
+var enemies;
 
 var jumpSound;
 var fallSound;
 var gameOverSound;
 var meowSound;
-var weasel_sound_played;
 
-var playedSuccessSound;
-var playedGameOverSound;
-var playedFallSound;
 
 
 function preload() {
@@ -47,58 +39,55 @@ function preload() {
 
     //load your sounds here
     jumpSound = loadSound('assets/jump.wav');
-    jumpSound.setVolume(0.1);
+    jumpSound.setVolume(0.2);
 
     fallSound = loadSound('assets/fall.wav');
-    fallSound.setVolume(0.1)
+    fallSound.setVolume(0.1);
 
     gameOverSound = loadSound('assets/over.wav');
-    gameOverSound.setVolume(0.9);
+    gameOverSound.setVolume(0.2);
 
     meowSound = loadSound('assets/meow.wav');
-    meowSound.setVolume(0.1);
+    meowSound.setVolume(0.7);
 
     successSound = loadSound('assets/success.wav');
-    successSound.setVolume(0.1);
+    successSound.setVolume(0.2);
 
     happyCatSound = loadSound('assets/happycat.wav');
     happyCatSound.setVolume(0.5);
 
     weaselSound = loadSound('assets/ferretdook.wav');
-    weaselSound.setVolume(0.5);
 
     music = loadSound('assets/retromusic2.wav');
-    music.setVolume(0.05);
+    music.setVolume(0.1);
 
-
+    // Plays the happy cat sound straight after the level completed sound
+    successSound.addCue(1, function() {
+        happyCatSound.play();
+    });
 }
-
 
 function setup() {
 
     createCanvas(1024, 576);
+
     floorPos_y = height * 3 / 4;
+
     lives = 3;
+
     startGame();
-
-    createCanvas(1024, 576);
-
-    playedSuccessSound = false;
-
-    playedGameOverSound = false;
-
-    playedFallSound = false;
-
-    successSound.addCue(1, playHappyCat, happyCatSound);
 
 }
 
 function draw() {
-    background(135, 206, 235); // fill the sky blue
 
+    // Fill the sky blue
+    background(135, 206, 235);
+
+    // Draw some green ground
     noStroke();
     fill(0, 155, 0);
-    rect(0, floorPos_y, width, height / 4); // draw some green ground
+    rect(0, floorPos_y, width, height / 4);
 
     push();
     translate(scrollPos, 0);
@@ -126,6 +115,7 @@ function draw() {
         }
     }
 
+    // Draw enemies (weasels)
     for (var i = 0; i < enemies.length; i++) {
         enemies[i].draw();
 
@@ -134,32 +124,36 @@ function draw() {
     // Draw flagpole
     renderFlagpole();
 
-
-    pop(); // end background
+    // End background drawing
+    pop();
 
     // Draw game character.
     drawGameChar();
 
-    // Draw hearts representing lives
-    drawLifeHearts();
+    // Show number of lives
+    displayLives();
 
     // Display score
-    fill(255);
+    fill(0);
     noStroke();
     textSize(20);
     text("Score: " + game_score, 20, 20);
 
-    // Print "game over" text if no lives left
+
     if (lives < 1) {
+
+        // Checks if background music is playing and stops it once the game is over
         if (music.isPlaying()) {
             music.stop();
         }
 
-        if (!playedGameOverSound) {
-            playGameOver();
+        // Sets "played" property of the sound object to true, so not played again in this try
+        if (!gameOverSound.played) {
+            gameOverSound.play();
+            gameOverSound.played = true;
         }
 
-
+        // Print "game over" text if no lives are left
         push();
         stroke(50);
         textSize(100);
@@ -172,7 +166,6 @@ function draw() {
 
         return;
 
-
     }
 
     // Print "level complete" text if flagpole reached
@@ -180,13 +173,16 @@ function draw() {
         if (music.isPlaying()) {
             music.stop();
         }
-        //Plays success sound only once, then sets variable denoting if sound was played to true
-        if (!playedSuccessSound) {
-            playSuccess();
+        // Plays success, level finished sound once and then sets played property to true
+        if (!successSound.played) {
+            successSound.play();
+            successSound.played = true;
         }
 
-        // Makes character fall if jumped onto flagpole
+        // Makes character fall if it jumped onto flagpole
         if (gameChar_y < floorPos_y + 5) {
+            isFalling = true;
+            isPlummeting = false;
             gameChar_y += 2;
         }
         push();
@@ -195,8 +191,8 @@ function draw() {
         fill(0, 0, 255);
         text("Level complete. Press space to continue.", 60, height / 2);
         pop();
-        return;
 
+        return;
     }
 
 
@@ -226,8 +222,10 @@ function draw() {
     }
 
     if (isPlummeting) {
-        if (playedFallSound == false) {
-            playPlummetingSound();
+        if (!fallSound.played) {
+            fallSound.play()
+            fallSound.played = true;
+
         }
         gameChar_y += 8;
     }
@@ -238,14 +236,13 @@ function draw() {
 
     checkPlayerDie();
 
-    // update real position of gameChar for collision detection.
+    // Update real position of gameChar for collision detection.
     gameChar_world_x = gameChar_x - scrollPos;
 
 }
 
 
 function keyPressed() {
-
 
     // Key code for left arrow = 37
     if (keyCode == 37) {
@@ -258,15 +255,23 @@ function keyPressed() {
     }
 
     // Key code for space
-    if (keyCode == 32 && gameChar_y == floorPos_y) {
-        // Fixes bug where if character had reached flagpole, still could jump
-        if (!flagpole.isReached) {
-            gameChar_y -= 100;
+    if (keyCode == 32) {
+
+        if (gameChar_y == floorPos_y) {
+            // Fixes bug where if character had reached flagpole, still could jump
+            if (!flagpole.isReached) {
+                gameChar_y -= 100;
+            }
+            jumpSound.play();
         }
 
-        jumpSound.play();
-    }
+        // If "game over" and space pressed, then restart the game
+        if (lives < 1) {
+            setup();
+            draw();
+        }
 
+    }
 }
 
 function keyReleased() {
@@ -693,9 +698,8 @@ function drawGameChar() {
             gameChar_y - 49
         );
 
-        // Draw eyes
+        // Draw dead eyes
         if (isPlummeting) {
-
             stroke(0);
             strokeWeight(1.2);
             line(gameChar_x - 7, gameChar_y - 60, gameChar_x - 3, gameChar_y - 55);
@@ -703,13 +707,13 @@ function drawGameChar() {
             line(gameChar_x + 7, gameChar_y - 60, gameChar_x + 3, gameChar_y - 55);
             line(gameChar_x + 3, gameChar_y - 60, gameChar_x + 7, gameChar_y - 55);
             noStroke();
-        } else {
-
+        } else
+        // Draw normal eyes
+        {
             fill(200, 200, 0);
             ellipse(gameChar_x - 5, gameChar_y - 57, 4);
             ellipse(gameChar_x + 5, gameChar_y - 57, 4);
         }
-
     }
     // Facing forwards code
     else {
@@ -1015,27 +1019,34 @@ function drawCollectable(t_collectable, color) {
     );
 }
 
-// Function to draw hearts representing lives
+// Function to display num of lives left
 
-function drawLifeHearts() {
-    for (var i = 0; i < lives; i++) {
-        drawCollectable({ x_pos: 20 + i * 40, y_pos: 60, size: 20 },
-            "magenta");
-    }
+function displayLives() {
+    textSize(20);
+    fill(0);
+    text("Lives: " + lives, 20, 60);
 }
 
 // Function to check character has collected an item.
 
 function checkCollectable(t_collectable) {
-    if (dist(gameChar_world_x, gameChar_y - 50, t_collectable.x_pos, t_collectable.y_pos) <= 50) {
+    if (
+        dist(
+            gameChar_world_x,
+            gameChar_y - 50,
+            t_collectable.x_pos,
+            t_collectable.y_pos) <= 50
+    ) {
         t_collectable.isFound = true;
         meowSound.play();
         game_score += 1;
     }
 }
 
+// Enemy (the weasel/ferret) constructor function
 function Weasel(x, range, size) {
 
+    // Define the object/weasel's properties
     this.x_pos = x;
     this.current_x_pos = x;
     this.size = size;
@@ -1045,6 +1056,7 @@ function Weasel(x, range, size) {
     this.x_incr = 1;
     this.y_incr = 0;
 
+    // Function which moves the weasel backwards and forwards
     this.update = function() {
 
         this.current_x_pos += this.x_incr;
@@ -1058,6 +1070,9 @@ function Weasel(x, range, size) {
             this.x_incr = 1;
         }
 
+        // Weasel/ferret "jumps" when moving backwards -
+        // if you want to know why, then watch 
+        // https://www.youtube.com/watch?v=EcX8fdxtNqM
         if (this.x_incr == 1) {
             if (frameCount % 10 == 0) {
                 this.y_incr = -9;
@@ -1065,132 +1080,291 @@ function Weasel(x, range, size) {
                 this.y_incr = 1;
             }
         }
+
     }
 
-
-    this.sound = function(length) {
-        if (!weasel_sound_played) {
-            playWeaselSound(length);
-        }
-    }
-
-
+    // Function which checks if game character has collided with the weasel
     this.checkContact = function() {
-        // var length_of_this_weasel = abs(this.current_x_pos - 20 * this.size - this.current_x_pos + 160 * this.size);
-        // var height_of_this_weasel = abs(this.y_pos - this.y_pos + 70 * this.size);
+
         if (
-            gameChar_world_x > this.current_x_pos - 26 * size &&
+            gameChar_world_x > this.current_x_pos - 26 * this.size &&
             gameChar_world_x < this.current_x_pos + 166 * this.size &&
-            gameChar_y > this.current_y_pos + 2 * this.size) {
-            this.sound(1);
+            gameChar_y > this.current_y_pos + 2 * this.size
+        ) {
+            // Play the happy ferret/weasel sound if hasn't already been played
+            if (!weaselSound.played) {
+                weaselSound.play(0, 1, 0.5, 0, 2);
+                weaselSound.played = true;
+            }
+            // Character falls down/dead eyes when plummeting is set to trrue
             isPlummeting = true;
         } else {
-            if (lives > 0) {
+            // Weasels only move if game is actively being played
+            // (not if "Game Over" or "Level Completed")
+            if (lives > 0 && !flagpole.isReached) {
                 this.update();
             }
         }
-
     }
 
-
+    // Function which draws the enemy
     this.draw = function() {
+
+        // Calls checkContact every time enemy is rendered
         this.checkContact();
+
         // Draw ear in beige
         fill(255, 235, 205);
-        ellipse(this.current_x_pos + (10 * this.size), this.current_y_pos, (10 * this.size), (20 * this.size));
+        ellipse(
+            this.current_x_pos + (10 * this.size),
+            this.current_y_pos, (10 * this.size),
+            (20 * this.size)
+        );
 
         // Draw body
         fill(84, 66, 52);
         beginShape();
-        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos + (20 * this.size));
-        curveVertex(this.current_x_pos + (20 * this.size), this.current_y_pos + (24 * this.size));
-        curveVertex(this.current_x_pos + (22 * this.size), this.current_y_pos + (26 * this.size));
-        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos);
-        curveVertex(this.current_x_pos, this.current_y_pos);
-        curveVertex(this.current_x_pos - (12 * this.size), this.current_y_pos + (4 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (12 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size));
-        curveVertex(this.current_x_pos - (12 * this.size), this.current_y_pos + (18 * this.size));
-        curveVertex(this.current_x_pos, this.current_y_pos + (22 * this.size));
-        curveVertex(this.current_x_pos + (16 * this.size), this.current_y_pos + (28 * this.size));
+        curveVertex(
+            this.current_x_pos + (15 * this.size),
+            this.current_y_pos + (20 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (20 * this.size),
+            this.current_y_pos + (24 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (22 * this.size),
+            this.current_y_pos + (26 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (15 * this.size),
+            this.current_y_pos
+        );
+        curveVertex(
+            this.current_x_pos,
+            this.current_y_pos
+        );
+        curveVertex(
+            this.current_x_pos - (12 * this.size),
+            this.current_y_pos + (4 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos - (18 * this.size),
+            this.current_y_pos + (12 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos - (18 * this.size),
+            this.current_y_pos + (14 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos - (18 * this.size),
+            this.current_y_pos + (14 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos - (12 * this.size),
+            this.current_y_pos + (18 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos,
+            this.current_y_pos + (22 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (16 * this.size),
+            this.current_y_pos + (28 * this.size)
+        );
         endShape();
 
         beginShape();
         // anchor point
-        curveVertex(this.current_x_pos, this.current_y_pos);
-        curveVertex(this.current_x_pos, this.current_y_pos + (10 * this.size));
-        curveVertex(this.current_x_pos + (12 * this.size), this.current_y_pos + (40 * this.size));
-        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos + (44 * this.size));
-        curveVertex(this.current_x_pos + (18 * this.size), this.current_y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (25 * this.size), this.current_y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (27 * this.size), this.current_y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (80 * this.size), this.current_y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (82 * this.size), this.current_y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (92 * this.size), this.current_y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (100 * this.size), this.current_y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (118 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(
+            this.current_x_pos,
+            this.current_y_pos
+        );
+        curveVertex(
+            this.current_x_pos,
+            this.current_y_pos + (10 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (12 * this.size),
+            this.current_y_pos + (40 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (15 * this.size),
+            this.current_y_pos + (44 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (18 * this.size),
+            this.current_y_pos + (48 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (25 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (27 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (80 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (82 * this.size),
+            this.current_y_pos + (48 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (92 * this.size),
+            this.current_y_pos + (48 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (100 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (118 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
         endShape();
 
         beginShape();
-        curveVertex(this.current_x_pos, this.current_y_pos);
-        curveVertex(this.current_x_pos + (20 * this.size), this.current_y_pos + (40 * this.size));
-        curveVertex(this.current_x_pos + (40 * this.size), this.current_y_pos + (30 * this.size));
-        curveVertex(this.current_x_pos + (80 * this.size), this.current_y_pos + (20 * this.size));
-        curveVertex(this.current_x_pos + (120 * this.size), this.current_y_pos + (30 * this.size));
-        curveVertex(this.current_x_pos + (140 * this.size), this.current_y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (160 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(
+            this.current_x_pos,
+            this.current_y_pos
+        );
+        curveVertex(
+            this.current_x_pos + (20 * this.size),
+            this.current_y_pos + (40 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (40 * this.size),
+            this.current_y_pos + (30 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (80 * this.size),
+            this.current_y_pos + (20 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (120 * this.size),
+            this.current_y_pos + (30 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (140 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
+        curveVertex(
+            this.current_x_pos + (160 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
         endShape();
-        ellipse(this.current_x_pos + (104 * this.size), this.current_y_pos + (50 * this.size), (60 * this.size), (12 * this.size));
+        ellipse(
+            this.current_x_pos + (104 * this.size),
+            this.current_y_pos + (50 * this.size),
+            (60 * this.size),
+            (12 * this.size));
 
         // Draw legs
         stroke(84, 66, 52);
         strokeWeight(3);
-        line(this.current_x_pos + (20 * this.size), this.current_y_pos + (44 * this.size), this.current_x_pos + (24 * this.size), this.current_y_pos + (58 * this.size));
-        line(this.current_x_pos + (26 * this.size), this.current_y_pos + (44 * this.size), this.current_x_pos + (30 * this.size), this.current_y_pos + (60 * this.size));
-        line(this.current_x_pos + (116 * this.size), this.current_y_pos + (46 * this.size), this.current_x_pos + (114 * this.size), this.current_y_pos + (60 * this.size));
-        line(this.current_x_pos + (122 * this.size), this.current_y_pos + (48 * this.size), this.current_x_pos + (120 * this.size), this.current_y_pos + (62 * this.size));
+        line(
+            this.current_x_pos + (20 * this.size),
+            this.current_y_pos + (44 * this.size),
+            this.current_x_pos + (24 * this.size),
+            this.current_y_pos + (58 * this.size)
+        );
+        line(
+            this.current_x_pos + (26 * this.size),
+            this.current_y_pos + (44 * this.size),
+            this.current_x_pos + (30 * this.size),
+            this.current_y_pos + (60 * this.size)
+        );
+        line(
+            this.current_x_pos + (116 * this.size),
+            this.current_y_pos + (46 * this.size),
+            this.current_x_pos + (114 * this.size),
+            this.current_y_pos + (60 * this.size)
+        );
+        line(
+            this.current_x_pos + (122 * this.size),
+            this.current_y_pos + (48 * this.size),
+            this.current_x_pos + (120 * this.size),
+            this.current_y_pos + (62 * this.size)
+        );
 
         //Draw tail
         strokeWeight(6);
-        line(this.current_x_pos + (120 * this.size), this.current_y_pos + (46 * this.size), this.current_x_pos + (162 * this.size), this.current_y_pos + (50 * this.size));
+        line(
+            this.current_x_pos + (120 * this.size),
+            this.current_y_pos + (46 * this.size),
+            this.current_x_pos + (162 * this.size),
+            this.current_y_pos + (50 * this.size)
+        );
 
         // Draw body markings
         fill(255, 235, 205);
         noStroke();
-        ellipse(this.current_x_pos + 84 * this.size, this.current_y_pos + 34 * this.size, 50 * this.size, 18 * this.size);
+        ellipse(
+            this.current_x_pos + 84 * this.size,
+            this.current_y_pos + 34 * this.size,
+            50 * this.size, 18 * this.size
+        );
 
         // Draw eye
         fill(0);
-        ellipse(this.current_x_pos - 3.5 * this.size, this.current_y_pos + 6.5 * this.size, 5 * this.size, 5 * this.size);
+        ellipse(
+            this.current_x_pos - 3.5 * this.size,
+            this.current_y_pos + 6.5 * this.size,
+            5 * this.size,
+            5 * this.size
+        );
         fill(255);
-        ellipse(this.current_x_pos - 3.5 * this.size, this.current_y_pos + 6.5 * this.size, 1 * this.size, 1 * this.size);
+        ellipse(
+            this.current_x_pos - 3.5 * this.size,
+            this.current_y_pos + 6.5 * this.size,
+            1 * this.size,
+            1 * this.size);
 
         // Draw nose
         fill(255, 192, 203);
-        ellipse(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size), 5 * this.size);
+        ellipse(
+            this.current_x_pos - (18 * this.size),
+            this.current_y_pos + (14 * this.size),
+            5 * this.size);
 
         // Draw whiskers
         stroke(0);
         strokeWeight(1);
-        line(this.current_x_pos - (12 * this.size), this.current_y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.current_y_pos + (10 * this.size));
-        line(this.current_x_pos - (12 * this.size), this.current_y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.current_y_pos + (14 * this.size));
+        line(
+            this.current_x_pos - (12 * this.size),
+            this.current_y_pos + (14 * this.size),
+            this.current_x_pos - (2 * this.size),
+            this.current_y_pos + (10 * this.size)
+        );
+        line(
+            this.current_x_pos - (12 * this.size),
+            this.current_y_pos + (14 * this.size),
+            this.current_x_pos - (2 * this.size),
+            this.current_y_pos + (14 * this.size)
+        );
 
         noStroke();
     }
 
 }
 
+// Function for drawing the flagpole
 function renderFlagpole() {
+
     push();
     strokeWeight(7);
     stroke(20);
+
     line(
         flagpole.x_pos,
         floorPos_y,
         flagpole.x_pos,
         floorPos_y - 246
     );
+
     noStroke();
     fill(255, 0, 255);
 
@@ -1203,6 +1377,7 @@ function renderFlagpole() {
     pop();
 }
 
+// Function checking if character reached end of level
 function checkFlagpole() {
     var distance = abs(gameChar_world_x - flagpole.x_pos);
 
@@ -1211,48 +1386,25 @@ function checkFlagpole() {
     }
 }
 
+// Function checking if character has died
 function checkPlayerDie() {
-
     if (gameChar_y - 200 > height) {
-        playedFallSound = false;
         lives -= 1;
         if (lives > 0) {
             startGame();
         }
     }
-
-}
-
-
-function playSuccess() {
-    successSound.play();
-    playedSuccessSound = true;
-}
-
-function playGameOver() {
-    gameOverSound.play();
-    playedGameOverSound = true;
-}
-
-function playPlummetingSound() {
-    fallSound.play();
-    playedFallSound = true;
-}
-
-
-function playHappyCat(cat_sound) {
-    cat_sound.play();
-}
-
-function playWeaselSound(length) {
-    weaselSound.play(0, 1, 0.5, 0, length);
-    weasel_sound_played = true;
 }
 
 function startGame() {
 
-    weasel_sound_played = false;
+    // Sets new property of each sound, 'played', at the beginning of the game to 'false'
+    weaselSound.played = false;
+    successSound.played = false;
+    gameOverSound.played = false;
+    fallSound.played = false;
 
+    // Stops music when character has lost a life and game must be loaded again
     if (music.isPlaying()) {
         music.stop();
     }
@@ -1376,6 +1528,8 @@ function startGame() {
         }
     ]
 
+    // Creates an array of weasels in specific positions (cannot iterate randomly over, as the
+    // weasel cannot be situated over a canyon!!!)
     enemies = [];
     var w = new Weasel(1090, 90, 0.68);
     enemies.push(w);
@@ -1390,9 +1544,14 @@ function startGame() {
     w = new Weasel(2350, 20, 0.6);
     enemies.push(w);
 
+    // Resets game score to 0
     game_score = 0;
 
-    flagpole = { isReached: false, x_pos: 2500 };
+    flagpole = {
+        isReached: false,
+        x_pos: 2500
+    };
 
+    // Re-starts music from the beginning
     music.play();
 }

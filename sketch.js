@@ -34,6 +34,7 @@ var jumpSound;
 var fallSound;
 var gameOverSound;
 var meowSound;
+var weasel_sound_played;
 
 var playedSuccessSound;
 var playedGameOverSound;
@@ -62,6 +63,9 @@ function preload() {
 
     happyCatSound = loadSound('assets/happycat.wav');
     happyCatSound.setVolume(0.5);
+
+    weaselSound = loadSound('assets/ferretdook.wav');
+    weaselSound.setVolume(0.5);
 
     music = loadSound('assets/retromusic2.wav');
     music.setVolume(0.05);
@@ -124,6 +128,7 @@ function draw() {
 
     for (var i = 0; i < enemies.length; i++) {
         enemies[i].draw();
+
     }
 
     // Draw flagpole
@@ -154,6 +159,7 @@ function draw() {
             playGameOver();
         }
 
+
         push();
         stroke(50);
         textSize(100);
@@ -163,7 +169,10 @@ function draw() {
         fill(0);
         text("Press space to continue.", width / 4, height / 2 + 120);
         pop();
+
         return;
+
+
     }
 
     // Print "level complete" text if flagpole reached
@@ -685,9 +694,21 @@ function drawGameChar() {
         );
 
         // Draw eyes
-        fill(200, 200, 0);
-        ellipse(gameChar_x - 5, gameChar_y - 57, 4);
-        ellipse(gameChar_x + 5, gameChar_y - 57, 4);
+        if (isPlummeting) {
+
+            stroke(0);
+            strokeWeight(1.2);
+            line(gameChar_x - 7, gameChar_y - 60, gameChar_x - 3, gameChar_y - 55);
+            line(gameChar_x - 3, gameChar_y - 60, gameChar_x - 7, gameChar_y - 55);
+            line(gameChar_x + 7, gameChar_y - 60, gameChar_x + 3, gameChar_y - 55);
+            line(gameChar_x + 3, gameChar_y - 60, gameChar_x + 7, gameChar_y - 55);
+            noStroke();
+        } else {
+
+            fill(200, 200, 0);
+            ellipse(gameChar_x - 5, gameChar_y - 57, 4);
+            ellipse(gameChar_x + 5, gameChar_y - 57, 4);
+        }
 
     }
     // Facing forwards code
@@ -1013,122 +1034,151 @@ function checkCollectable(t_collectable) {
     }
 }
 
-function Weasel(x, y, range, size) {
+function Weasel(x, range, size) {
+
     this.x_pos = x;
     this.current_x_pos = x;
-    this.y_pos = y;
     this.size = size;
+    this.y_pos = floorPos_y - 50 * this.size;
+    this.current_y_pos = floorPos_y - 50 * this.size;
     this.range = range;
-    this.incr = 1;
+    this.x_incr = 1;
+    this.y_incr = 0;
 
     this.update = function() {
-        console.log(this.incr, this.current_x_pos, this.x_pos);
-        this.current_x_pos += this.incr;
 
-        if (frameCount % 10 == 0) {
-            this.y_pos -= 9;
-        } else {
-            this.y_pos += 1.;
-        }
+        this.current_x_pos += this.x_incr;
+        this.current_y_pos += this.y_incr;
 
         if (this.current_x_pos >= this.x_pos + this.range) {
-            this.incr = -1;
+            this.x_incr = -1;
+            this.current_y_pos = this.y_pos;
+            this.y_incr = 0;
         } else if (this.current_x_pos < this.x_pos) {
-            this.incr = 1;
+            this.x_incr = 1;
         }
+
+        if (this.x_incr == 1) {
+            if (frameCount % 10 == 0) {
+                this.y_incr = -9;
+            } else {
+                this.y_incr = 1;
+            }
+        }
+    }
+
+
+    this.sound = function(length) {
+        if (!weasel_sound_played) {
+            playWeaselSound(length);
+        }
+    }
+
+
+    this.checkContact = function() {
+        // var length_of_this_weasel = abs(this.current_x_pos - 20 * this.size - this.current_x_pos + 160 * this.size);
+        // var height_of_this_weasel = abs(this.y_pos - this.y_pos + 70 * this.size);
+        if (
+            gameChar_world_x > this.current_x_pos - 26 * size &&
+            gameChar_world_x < this.current_x_pos + 166 * this.size &&
+            gameChar_y > this.current_y_pos + 2 * this.size) {
+            this.sound(1);
+            isPlummeting = true;
+        } else {
+            if (lives > 0) {
+                this.update();
+            }
+        }
+
     }
 
 
     this.draw = function() {
-        this.update();
+        this.checkContact();
         // Draw ear in beige
         fill(255, 235, 205);
-        ellipse(this.current_x_pos + (10 * this.size), this.y_pos, (10 * this.size), (20 * this.size));
+        ellipse(this.current_x_pos + (10 * this.size), this.current_y_pos, (10 * this.size), (20 * this.size));
 
         // Draw body
         fill(84, 66, 52);
         beginShape();
-        curveVertex(this.current_x_pos + (15 * this.size), this.y_pos + (20 * this.size));
-        curveVertex(this.current_x_pos + (20 * this.size), this.y_pos + (24 * this.size));
-        curveVertex(this.current_x_pos + (22 * this.size), this.y_pos + (26 * this.size));
-        curveVertex(this.current_x_pos + (15 * this.size), this.y_pos);
-        curveVertex(this.current_x_pos, this.y_pos);
-        curveVertex(this.current_x_pos - (12 * this.size), this.y_pos + (4 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.y_pos + (12 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.y_pos + (14 * this.size));
-        curveVertex(this.current_x_pos - (18 * this.size), this.y_pos + (14 * this.size));
-        curveVertex(this.current_x_pos - (12 * this.size), this.y_pos + (18 * this.size));
-        curveVertex(this.current_x_pos, this.y_pos + (22 * this.size));
-        curveVertex(this.current_x_pos + (16 * this.size), this.y_pos + (28 * this.size));
+        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos + (20 * this.size));
+        curveVertex(this.current_x_pos + (20 * this.size), this.current_y_pos + (24 * this.size));
+        curveVertex(this.current_x_pos + (22 * this.size), this.current_y_pos + (26 * this.size));
+        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos);
+        curveVertex(this.current_x_pos, this.current_y_pos);
+        curveVertex(this.current_x_pos - (12 * this.size), this.current_y_pos + (4 * this.size));
+        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (12 * this.size));
+        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size));
+        curveVertex(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size));
+        curveVertex(this.current_x_pos - (12 * this.size), this.current_y_pos + (18 * this.size));
+        curveVertex(this.current_x_pos, this.current_y_pos + (22 * this.size));
+        curveVertex(this.current_x_pos + (16 * this.size), this.current_y_pos + (28 * this.size));
         endShape();
 
         beginShape();
-        curveVertex(this.current_x_pos, this.y_pos);
-        curveVertex(this.current_x_pos, this.y_pos + (10 * this.size));
-        curveVertex(this.current_x_pos + (12 * this.size), this.y_pos + (40 * this.size));
-        curveVertex(this.current_x_pos + (15 * this.size), this.y_pos + (44 * this.size));
-        curveVertex(this.current_x_pos + (18 * this.size), this.y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (25 * this.size), this.y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (27 * this.size), this.y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (80 * this.size), this.y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (82 * this.size), this.y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (92 * this.size), this.y_pos + (48 * this.size));
-        curveVertex(this.current_x_pos + (100 * this.size), this.y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (118 * this.size), this.y_pos + (50 * this.size));
+        // anchor point
+        curveVertex(this.current_x_pos, this.current_y_pos);
+        curveVertex(this.current_x_pos, this.current_y_pos + (10 * this.size));
+        curveVertex(this.current_x_pos + (12 * this.size), this.current_y_pos + (40 * this.size));
+        curveVertex(this.current_x_pos + (15 * this.size), this.current_y_pos + (44 * this.size));
+        curveVertex(this.current_x_pos + (18 * this.size), this.current_y_pos + (48 * this.size));
+        curveVertex(this.current_x_pos + (25 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos + (27 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos + (80 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos + (82 * this.size), this.current_y_pos + (48 * this.size));
+        curveVertex(this.current_x_pos + (92 * this.size), this.current_y_pos + (48 * this.size));
+        curveVertex(this.current_x_pos + (100 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos + (118 * this.size), this.current_y_pos + (50 * this.size));
         endShape();
 
         beginShape();
-        curveVertex(this.current_x_pos, this.y_pos);
-        curveVertex(this.current_x_pos + (20 * this.size), this.y_pos + (40 * this.size));
-        curveVertex(this.current_x_pos + (40 * this.size), this.y_pos + (30 * this.size));
-        curveVertex(this.current_x_pos + (80 * this.size), this.y_pos + (20 * this.size));
-        curveVertex(this.current_x_pos + (120 * this.size), this.y_pos + (30 * this.size));
-        curveVertex(this.current_x_pos + (140 * this.size), this.y_pos + (50 * this.size));
-        curveVertex(this.current_x_pos + (160 * this.size), this.y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos, this.current_y_pos);
+        curveVertex(this.current_x_pos + (20 * this.size), this.current_y_pos + (40 * this.size));
+        curveVertex(this.current_x_pos + (40 * this.size), this.current_y_pos + (30 * this.size));
+        curveVertex(this.current_x_pos + (80 * this.size), this.current_y_pos + (20 * this.size));
+        curveVertex(this.current_x_pos + (120 * this.size), this.current_y_pos + (30 * this.size));
+        curveVertex(this.current_x_pos + (140 * this.size), this.current_y_pos + (50 * this.size));
+        curveVertex(this.current_x_pos + (160 * this.size), this.current_y_pos + (50 * this.size));
         endShape();
-
-        ellipse(this.current_x_pos + (104 * this.size), this.y_pos + (50 * this.size), (60 * this.size), (12 * this.size));
+        ellipse(this.current_x_pos + (104 * this.size), this.current_y_pos + (50 * this.size), (60 * this.size), (12 * this.size));
 
         // Draw legs
         stroke(84, 66, 52);
         strokeWeight(3);
-        line(this.current_x_pos + (20 * this.size), this.y_pos + (44 * this.size), this.current_x_pos + (24 * this.size), this.y_pos + (58 * this.size));
-        line(this.current_x_pos + (26 * this.size), this.y_pos + (44 * this.size), this.current_x_pos + (30 * this.size), this.y_pos + (60 * this.size));
-        line(this.current_x_pos + (116 * this.size), this.y_pos + (46 * this.size), this.current_x_pos + (114 * this.size), this.y_pos + (60 * this.size));
-        line(this.current_x_pos + (122 * this.size), this.y_pos + (48 * this.size), this.current_x_pos + (120 * this.size), this.y_pos + (62 * this.size));
+        line(this.current_x_pos + (20 * this.size), this.current_y_pos + (44 * this.size), this.current_x_pos + (24 * this.size), this.current_y_pos + (58 * this.size));
+        line(this.current_x_pos + (26 * this.size), this.current_y_pos + (44 * this.size), this.current_x_pos + (30 * this.size), this.current_y_pos + (60 * this.size));
+        line(this.current_x_pos + (116 * this.size), this.current_y_pos + (46 * this.size), this.current_x_pos + (114 * this.size), this.current_y_pos + (60 * this.size));
+        line(this.current_x_pos + (122 * this.size), this.current_y_pos + (48 * this.size), this.current_x_pos + (120 * this.size), this.current_y_pos + (62 * this.size));
 
         //Draw tail
         strokeWeight(6);
-        line(this.current_x_pos + (120 * this.size), this.y_pos + (46 * this.size), this.current_x_pos + (162 * this.size), this.y_pos + (50 * this.size));
+        line(this.current_x_pos + (120 * this.size), this.current_y_pos + (46 * this.size), this.current_x_pos + (162 * this.size), this.current_y_pos + (50 * this.size));
 
         // Draw body markings
         fill(255, 235, 205);
         noStroke();
-        ellipse(this.current_x_pos + 84 * this.size, this.y_pos + 34 * this.size, 50 * this.size, 18 * this.size);
+        ellipse(this.current_x_pos + 84 * this.size, this.current_y_pos + 34 * this.size, 50 * this.size, 18 * this.size);
 
         // Draw eye
         fill(0);
-        ellipse(this.current_x_pos - 3.5 * this.size, this.y_pos + 6.5 * this.size, 5 * this.size, 5 * this.size);
+        ellipse(this.current_x_pos - 3.5 * this.size, this.current_y_pos + 6.5 * this.size, 5 * this.size, 5 * this.size);
         fill(255);
-        ellipse(this.current_x_pos - 3.5 * this.size, this.y_pos + 6.5 * this.size, 1 * this.size, 1 * this.size);
+        ellipse(this.current_x_pos - 3.5 * this.size, this.current_y_pos + 6.5 * this.size, 1 * this.size, 1 * this.size);
 
         // Draw nose
         fill(255, 192, 203);
-        ellipse(this.current_x_pos - (18 * this.size), this.y_pos + (14 * this.size), 5 * this.size);
+        ellipse(this.current_x_pos - (18 * this.size), this.current_y_pos + (14 * this.size), 5 * this.size);
 
         // Draw whiskers
         stroke(0);
         strokeWeight(1);
-        line(this.current_x_pos - (12 * this.size), this.y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.y_pos + (10 * this.size));
-        line(this.current_x_pos - (12 * this.size), this.y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.y_pos + (14 * this.size));
+        line(this.current_x_pos - (12 * this.size), this.current_y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.current_y_pos + (10 * this.size));
+        line(this.current_x_pos - (12 * this.size), this.current_y_pos + (14 * this.size), this.current_x_pos - (2 * this.size), this.current_y_pos + (14 * this.size));
 
         noStroke();
     }
 
-    //    this.checkContact = function()
-    //    {
-    //        
-    //    }
 }
 
 function renderFlagpole() {
@@ -1162,16 +1212,17 @@ function checkFlagpole() {
 }
 
 function checkPlayerDie() {
-    if (gameChar_y - 200 > height) {
-        lives -= 1;
-        playedFallSound = false;
 
+    if (gameChar_y - 200 > height) {
+        playedFallSound = false;
+        lives -= 1;
         if (lives > 0) {
             startGame();
         }
     }
 
 }
+
 
 function playSuccess() {
     successSound.play();
@@ -1193,7 +1244,15 @@ function playHappyCat(cat_sound) {
     cat_sound.play();
 }
 
+function playWeaselSound(length) {
+    weaselSound.play(0, 1, 0.5, 0, length);
+    weasel_sound_played = true;
+}
+
 function startGame() {
+
+    weasel_sound_played = false;
+
     if (music.isPlaying()) {
         music.stop();
     }
@@ -1270,6 +1329,18 @@ function startGame() {
             y_pos: floorPos_y - 150,
             size: 22,
             isFound: false
+        },
+        {
+            x_pos: 1400,
+            y_pos: floorPos_y - 180,
+            size: 20,
+            isFound: false
+        },
+        {
+            x_pos: 2300,
+            y_pos: floorPos_y - 150,
+            size: 24,
+            isFound: false
         }
     ]
 
@@ -1306,8 +1377,19 @@ function startGame() {
     ]
 
     enemies = [];
-    var w = new Weasel(700, floorPos_y - 50, 100, 0.9)
+    var w = new Weasel(1090, 90, 0.68);
     enemies.push(w);
+    w = new Weasel(700, 50, 0.6);
+    enemies.push(w);
+    w = new Weasel(-190, 110, 0.55);
+    enemies.push(w);
+    w = new Weasel(-540, 50, 0.7);
+    enemies.push(w);
+    w = new Weasel(1400, 50, 0.6);
+    enemies.push(w);
+    w = new Weasel(2350, 20, 0.6);
+    enemies.push(w);
+
     game_score = 0;
 
     flagpole = { isReached: false, x_pos: 2500 };
